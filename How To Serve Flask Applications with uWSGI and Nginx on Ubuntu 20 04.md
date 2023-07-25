@@ -1,0 +1,797 @@
+# How To Serve Flask Applications with uWSGI and Nginx on Ubuntu 20 04
+
+```Python``` ```Ubuntu``` ```Nginx``` ```Python Frameworks``` ```Ubuntu 20.04``` ```Flask```
+
+A previous version of this tutorial was written by Justin Ellingwood
+
+
+## Introduction
+
+
+In this guide, you will build a Python application using the Flask microframework on Ubuntu 20.04.  The bulk of this article will be about how to set up the uWSGI application server and how to launch the application and configure Nginx to act as a front-end reverse proxy.
+
+
+# Prerequisites
+
+
+Before starting this guide, you should have:
+
+
+- 
+A server with Ubuntu 20.04 installed and a non-root user with sudo privileges. Follow our initial server setup guide for guidance.
+
+- 
+Nginx installed, following Steps 1 through 3 of How To Install Nginx on Ubuntu 20.04.
+
+- 
+A domain name configured to point to your server. You can purchase one on Namecheap or get one for free on Freenom. You can learn how to point domains to DigitalOcean by following the relevant documentation on domains and DNS. This tutorial assumes you’ve created the following DNS records:
+
+An A record with your_domain pointing to your server’s public IP address.
+An A record with www.your_domain pointing to your server’s public IP address.
+
+
+- An A record with your_domain pointing to your server’s public IP address.
+- An A record with www.your_domain pointing to your server’s public IP address.
+
+Additionally, it may be helpful to have some familiarity with uWSGI, the application server you’ll set up in this guide, and the WSGI specification. This discussion of definitions and concepts goes over both in detail.
+
+
+# Step 1 — Installing the Components from the Ubuntu Repositories
+
+
+Your first step will be to install all of the pieces that you need from the Ubuntu repositories.  The packages you need to install include pip, the Python package manager, to manage your Python components. You’ll also get the Python development files necessary to build uWSGI.
+
+
+First, update the local package index:
+
+
+```
+sudo apt update
+
+
+```
+
+
+Then install the packages that will allow you to build your Python environment. These will include python3-pip, along with a few more packages and development tools necessary for a robust programming environment:
+
+
+```
+sudo apt install python3-pip python3-dev build-essential libssl-dev libffi-dev python3-setuptools
+
+
+```
+
+
+With these packages in place, you’re ready to move on to creating a virtual environment for your project.
+
+
+# Step 2 — Creating a Python Virtual Environment
+
+
+A Python virtual environment is a self-contained project directory that contains specific versions of Python and the Python modules required for the given project. This is useful for isolating one application from others on the same system by managing each one’s dependencies separately. In this step, you’ll set up a Python virtual environment from which you’ll run your Flask application.
+
+
+Start by installing the python3-venv package, which will install the venv module:
+
+
+```
+sudo apt install python3-venv
+
+
+```
+
+
+Next, make a parent directory for your Flask project:
+
+
+```
+mkdir ~/myproject
+
+
+```
+
+
+Move into the directory after you create it:
+
+
+```
+cd ~/myproject
+
+
+```
+
+
+Create a virtual environment to store your Flask project’s Python requirements by typing:
+
+
+```
+python3.8 -m venv myprojectenv
+
+
+```
+
+
+This will install a local copy of Python and pip into a directory called myprojectenv within your project directory.
+
+
+Before installing applications within the virtual environment, you need to activate it.  Do so by typing:
+
+
+```
+source myprojectenv/bin/activate
+
+
+```
+
+
+Your prompt will change to indicate that you are now operating within the virtual environment.  It will look something like this: (myprojectenv)user@host:~/myproject$.
+
+
+# Step 3 — Setting Up a Flask Application
+
+
+Now that you are in your virtual environment, you can install Flask and uWSGI and then get started on designing your application.
+
+
+First, install wheel with the local instance of pip to ensure that your packages will install even if they are missing wheel archives:
+
+
+```
+pip install wheel
+
+
+```
+
+
+
+Note: Regardless of which version of Python you are using, when the virtual environment is activated, you should use the pip command (not pip3).
+
+Next, install Flask and uWSGI:
+
+
+```
+pip install uwsgi flask
+
+
+```
+
+
+## Creating a Sample App
+
+
+Now that you have Flask available, you can create a sample application.  Flask is a microframework.  It does not include many of the tools that more full-featured frameworks might, and exists mainly as a module that you can import into your projects to assist you in initializing a web application.
+
+
+While your application might be more complex, in this example you’ll create your Flask app in a single file, called myproject.py:
+
+
+```
+nano ~/myproject/myproject.py
+
+
+```
+
+
+The application code will live in this file. It will import Flask and instantiate a Flask object.  You can use this to define the functions that you want to be run when a specific route is requested:
+
+
+~/myproject/myproject.py
+```
+from flask import Flask
+app = Flask(__name__)
+
+@app.route("/")
+def hello():
+    return "<h1 style='color:blue'>Hello There!</h1>"
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0')
+
+```
+
+
+Essentially, this defines what content to present to whoever accesses the root domain.  Save and close the file when you’re finished. If you used nano to edit the file, as in the previous example, do so by pressing CTRL + X, Y, and then ENTER.
+
+
+If you followed the initial server setup guide, you should have a UFW firewall enabled.  To test the application, you need to allow access to port 5000:
+
+
+```
+sudo ufw allow 5000
+
+
+```
+
+
+Now, you can test your Flask app by typing:
+
+
+```
+python myproject.py
+
+
+```
+
+
+You will see output like the following, including a helpful warning reminding you not to use this server setup in production:
+
+
+```
+Output* Serving Flask app "myproject" (lazy loading)
+ * Environment: production
+   WARNING: Do not use the development server in a production environment.
+   Use a production WSGI server instead.
+ * Debug mode: off
+ * Running on http://0.0.0.0:5000/ (Press CTRL+C to quit)
+
+```
+
+
+Visit your server’s IP address followed by :5000 in your web browser:
+
+
+```
+http://your_server_ip:5000
+
+```
+
+
+You will see something like this:
+
+
+
+
+
+When you are finished, hit CTRL + C in your terminal window to stop the Flask development server.
+
+
+## Creating the WSGI Entry Point
+
+
+Next, create a file that will serve as the entry point for your application.  This will tell your uWSGI server how to interact with it.
+
+
+Call the file wsgi.py:
+
+
+```
+nano ~/myproject/wsgi.py
+
+
+```
+
+
+In this file, import the Flask instance from your application and then run it:
+
+
+~/myproject/wsgi.py
+```
+from myproject import app
+
+if __name__ == "__main__":
+    app.run()
+
+```
+
+
+Save and close the file when you are finished.
+
+
+# Step 4 — Configuring uWSGI
+
+
+Your application is now written with an entry point established. You can move on to configuring uWSGI.
+
+
+## Testing Whether uWSGI Can Serve the Application
+
+
+As a first step, test to make sure that uWSGI can correctly serve your application by passing it the name of your entry point.  This is constructed by the name of the module (minus the .py extension) plus the name of the callable within the application.  In the context of this tutorial, the name of the entry point is wsgi:app.
+
+
+Also, specify the socket so that it will be started on a publicly available interface, as well as the protocol, so that it will use HTTP instead of the uwsgi binary protocol.  Use the same port number, 5000, that you opened earlier:
+
+
+```
+uwsgi --socket 0.0.0.0:5000 --protocol=http -w wsgi:app
+
+
+```
+
+
+Visit your server’s IP address with :5000 appended to the end in your web browser again:
+
+
+```
+http://your_server_ip:5000
+
+```
+
+
+You will see your application’s output again:
+
+
+
+
+
+When you have confirmed that it’s functioning properly, press CTRL + C in your terminal window.
+
+
+You’re now done with your virtual environment, so you can deactivate it:
+
+
+```
+deactivate
+
+
+```
+
+
+Any Python commands will now use the system’s Python environment again.
+
+
+## Creating a uWSGI Configuration File
+
+
+You have tested that uWSGI is able to serve your application, but ultimately you will want something more robust for long-term usage.  You can create a uWSGI configuration file with the relevant options for this.
+
+
+Place that file in your project directory and call it myproject.ini:
+
+
+```
+nano ~/myproject/myproject.ini
+
+
+```
+
+
+Inside, start the file off with the [uwsgi] header so that uWSGI knows to apply the settings.  Below that, specify module itself — by referring to the wsgi.py file minus the extension — and the callable within the file, app:
+
+
+~/myproject/myproject.ini
+```
+[uwsgi]
+module = wsgi:app
+
+```
+
+
+Next, tell uWSGI to start up in master mode and spawn five worker processes to serve actual requests:
+
+
+~/myproject/myproject.ini
+```
+[uwsgi]
+module = wsgi:app
+
+master = true
+processes = 5
+
+```
+
+
+When you were testing, you exposed uWSGI on a network port.  However, you’re going to be using Nginx to handle actual client connections, which will then pass requests to uWSGI.  Since these components are operating on the same computer, a Unix socket is preferable because it is faster and more secure.  Call the socket myproject.sock and place it in this directory.
+
+
+Next, change the permissions on the socket.  You’ll be giving the Nginx group ownership of the uWSGI process later on, so you need to make sure the group owner of the socket can read information from it and write to it.  Also, add the vacuum option and set it to true; this will clean up the socket when the process stops:
+
+
+~/myproject/myproject.ini
+```
+[uwsgi]
+module = wsgi:app
+
+master = true
+processes = 5
+
+socket = myproject.sock
+chmod-socket = 660
+vacuum = true
+
+```
+
+
+The last thing to do is set the die-on-term option.  This can help ensure that the init system and uWSGI have the same assumptions about what each process signal means.  Setting this aligns the two system components, implementing the expected behavior:
+
+
+~/myproject/myproject.ini
+```
+[uwsgi]
+module = wsgi:app
+
+master = true
+processes = 5
+
+socket = myproject.sock
+chmod-socket = 660
+vacuum = true
+
+die-on-term = true
+
+```
+
+
+You may have noticed that these lines do not specify a protocol like you did from the command line. That is because by default, uWSGI speaks using the uwsgi protocol, a fast binary protocol designed to communicate with other servers.  Nginx can speak this protocol natively, so it’s better to use this than to force communication by HTTP.
+
+
+When you are finished, save and close the file.
+
+
+With that, uWSGI is configured on your system. In order to give you more flexibility in how you manage your Flask application, you can now configure it to run as a systemd service.
+
+
+# Step 5 — Creating a systemd Unit File
+
+
+Systemd is a suite of tools that provides a fast and flexible init model for managing system services. Creating a systemd unit file will allow Ubuntu’s init system to automatically start uWSGI and serve the Flask application whenever the server boots.
+
+
+Create a unit file ending in .service within the /etc/systemd/system directory to begin:
+
+
+```
+sudo nano /etc/systemd/system/myproject.service
+
+
+```
+
+
+Inside, start with the [Unit] section, which is used to specify metadata and dependencies. Then put a description of the service here and tell the init system to only start this after the networking target has been reached:
+
+
+/etc/systemd/system/myproject.service
+```
+[Unit]
+Description=uWSGI instance to serve myproject
+After=network.target
+
+```
+
+
+Next, open up the [Service] section. This will specify the user and group that you want the process to run under. Give your regular user account ownership of the process since it owns all of the relevant files. Then give group ownership to the www-data group so that Nginx can communicate easily with the uWSGI processes. Remember to replace the username here with your username:
+
+
+/etc/systemd/system/myproject.service
+```
+[Unit]
+Description=uWSGI instance to serve myproject
+After=network.target
+
+[Service]
+User=sammy
+Group=www-data
+
+```
+
+
+Next, map out the working directory and set the PATH environmental variable so that the init system knows that the executables for the process are located within your virtual environment. Also, specify the command to start the service. Systemd requires that you give the full path to the uWSGI executable, which is installed within your virtual environment. Here, we pass the name of the .ini configuration file you created in your project directory.
+
+
+Remember to replace the username and project paths with your own information:
+
+
+/etc/systemd/system/myproject.service
+```
+[Unit]
+Description=uWSGI instance to serve myproject
+After=network.target
+
+[Service]
+User=sammy
+Group=www-data
+WorkingDirectory=/home/sammy/myproject
+Environment="PATH=/home/sammy/myproject/myprojectenv/bin"
+ExecStart=/home/sammy/myproject/myprojectenv/bin/uwsgi --ini myproject.ini
+
+```
+
+
+Finally, add an [Install] section. This will tell systemd what to link this service to if you enable it to start at boot. In this case, set the service to start when the regular multi-user system is up and running:
+
+
+/etc/systemd/system/myproject.service
+```
+[Unit]
+Description=uWSGI instance to serve myproject
+After=network.target
+
+[Service]
+User=sammy
+Group=www-data
+WorkingDirectory=/home/sammy/myproject
+Environment="PATH=/home/sammy/myproject/myprojectenv/bin"
+ExecStart=/home/sammy/myproject/myprojectenv/bin/uwsgi --ini myproject.ini
+
+[Install]
+WantedBy=multi-user.target
+
+```
+
+
+With that, your systemd service file is complete. Save and close it now.
+
+
+You can now start the uWSGI service you created:
+
+
+```
+sudo systemctl start myproject
+
+
+```
+
+
+Then enable it so that it starts at boot:
+
+
+```
+sudo systemctl enable myproject
+
+
+```
+
+
+Check the status:
+
+
+```
+sudo systemctl status myproject
+
+
+```
+
+
+You will see output like this:
+
+
+```
+Output● myproject.service - uWSGI instance to serve myproject
+     Loaded: loaded (/etc/systemd/system/myproject.service; enabled; vendor preset: enabled)
+     Active: active (running) since Wed 2020-05-20 13:21:39 UTC; 8h ago
+   Main PID: 22146 (uwsgi)
+      Tasks: 6 (limit: 2345)
+     Memory: 25.5M
+     CGroup: /system.slice/myproject.service
+             ├─22146 /home/sammy/myproject/myprojectenv/bin/uwsgi --ini myproject.ini
+             ├─22161 /home/sammy/myproject/myprojectenv/bin/uwsgi --ini myproject.ini
+             ├─22162 /home/sammy/myproject/myprojectenv/bin/uwsgi --ini myproject.ini
+             ├─22163 /home/sammy/myproject/myprojectenv/bin/uwsgi --ini myproject.ini
+             ├─22164 /home/sammy/myproject/myprojectenv/bin/uwsgi --ini myproject.ini
+             └─22165 /home/sammy/myproject/myprojectenv/bin/uwsgi --ini myproject.ini
+
+```
+
+
+If you see any errors, be sure to resolve them before continuing with the tutorial. Otherwise, you can move on to configuring your Nginx installation to pass requests to the myproject.sock socket.
+
+
+# Step 6 — Configuring Nginx to Proxy Requests
+
+
+Your uWSGI application server is now up and running, waiting for requests on the socket file in the project directory. In this step, you’ll configure Nginx to pass web requests to that socket using the uwsgi protocol.
+
+
+Begin by creating a new server block configuration file in Nginx’s sites-available directory.  To keep in line with the rest of the guide, the following example refers to this as myproject:
+
+
+```
+sudo nano /etc/nginx/sites-available/myproject
+
+
+```
+
+
+Open up a server block and tell Nginx to listen on the default port 80.  Additionally, tell it to use this block for requests for your server’s domain name:
+
+
+/etc/nginx/sites-available/myproject
+```
+server {
+    listen 80;
+    server_name your_domain www.your_domain;
+}
+
+```
+
+
+Next, add a location block that matches every request.  Within this block, include the uwsgi_params file that specifies some general uWSGI parameters that need to be set.  Then pass the requests to the socket you defined using the uwsgi_pass directive:
+
+
+/etc/nginx/sites-available/myproject
+```
+server {
+    listen 80;
+    server_name your_domain www.your_domain;
+
+    location / {
+        include uwsgi_params;
+        uwsgi_pass unix:/home/sammy/myproject/myproject.sock;
+    }
+}
+
+```
+
+
+Save and close the file when you’re finished.
+
+
+To enable the Nginx server block configuration you’ve just created, link the file to the sites-enabled directory:
+
+
+```
+sudo ln -s /etc/nginx/sites-available/myproject /etc/nginx/sites-enabled
+
+
+```
+
+
+When you installed Nginx, the process automatically set up a server block configuration file named default in the sites-available directory, and then created a symbolic link between that file and the sites-enabled directory. If you leave this symbolic link in place, the default configuration will block your site from loading. You can remove the link it with the following command:
+
+
+```
+sudo unlink /etc/nginx/sites-enabled/default
+
+
+```
+
+
+Following that, you can test for syntax errors by typing:
+
+
+```
+sudo nginx -t
+
+
+```
+
+
+If this returns without indicating any issues, restart the Nginx process to read the new configuration:
+
+
+```
+sudo systemctl restart nginx
+
+
+```
+
+
+Finally, adjust the firewall once again.  You no longer need access through port 5000, so you can remove that rule.  Then, you can allow access to the Nginx server:
+
+
+```
+sudo ufw delete allow 5000
+sudo ufw allow 'Nginx Full'
+
+
+```
+
+
+You will now be able to navigate to your server’s domain name in your web browser:
+
+
+```
+http://your_domain
+
+```
+
+
+You will see your application output:
+
+
+
+
+
+If you encounter any errors, try checking the following:
+
+
+- sudo less /var/log/nginx/error.log: checks the Nginx error logs.
+- sudo less /var/log/nginx/access.log: checks the Nginx access logs.
+- sudo journalctl -u nginx: checks the Nginx process logs.
+- sudo journalctl -u myproject: checks your Flask app’s uWSGI logs.
+
+# Step 7 — Securing the Application
+
+
+To ensure that traffic to your server remains secure, obtain an SSL certificate for your domain. There are multiple ways to do this, including getting a free certificate from Let’s Encrypt, generating a self-signed certificate, or buying one from a commercial provider. For the sake of expediency, this tutorial explains how to obtain a free certificate from Let’s Encrypt.
+
+
+First, install Certbot and its Nginx plugin with apt:
+
+
+```
+sudo apt install certbot python3-certbot-nginx
+
+
+```
+
+
+Certbot provides a variety of ways to obtain SSL certificates through plugins. The Nginx plugin will take care of reconfiguring Nginx and reloading the config whenever necessary. To use this plugin, type the following:
+
+
+```
+sudo certbot --nginx -d your_domain -d www.your_domain
+
+
+```
+
+
+This runs certbot with the --nginx plugin, using -d to specify the names you’d like the certificate to be valid for.
+
+
+If this is your first time running certbot on this server, you will be prompted to enter an email address and agree to the terms of service. After doing so, certbot will communicate with the Let’s Encrypt server, then run a challenge to verify that you control the domain you’re requesting a certificate for.
+
+
+If that’s successful, certbot will ask how you’d like to configure your HTTPS settings:
+
+
+```
+OutputPlease choose whether or not to redirect HTTP traffic to HTTPS, removing HTTP access.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+1: No redirect - Make no further changes to the webserver configuration.
+2: Redirect - Make all requests redirect to secure HTTPS access. Choose this for
+new sites, or if you're confident your site works on HTTPS. You can undo this
+change by editing your web server's configuration.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Select the appropriate number [1-2] then [enter] (press 'c' to cancel):
+
+```
+
+
+Select your choice then hit ENTER. The configuration will be updated, and Nginx will reload to pick up the new settings. certbot will wrap up with a message telling you the process was successful and where your certificates are stored:
+
+
+```
+OutputIMPORTANT NOTES:
+ - Congratulations! Your certificate and chain have been saved at:
+   /etc/letsencrypt/live/your_domain/fullchain.pem
+   Your key file has been saved at:
+   /etc/letsencrypt/live/your_domain/privkey.pem
+   Your cert will expire on 2020-08-18. To obtain a new or tweaked
+   version of this certificate in the future, simply run certbot again
+   with the "certonly" option. To non-interactively renew *all* of
+   your certificates, run "certbot renew"
+ - Your account credentials have been saved in your Certbot
+   configuration directory at /etc/letsencrypt. You should make a
+   secure backup of this folder now. This configuration directory will
+   also contain certificates and private keys obtained by Certbot so
+   making regular backups of this folder is ideal.
+ - If you like Certbot, please consider supporting our work by:
+
+   Donating to ISRG / Let's Encrypt:   https://letsencrypt.org/donate
+   Donating to EFF:                    https://eff.org/donate-le
+
+```
+
+
+If you followed the Nginx installation instructions in the prerequisites, you will no longer need the redundant HTTP profile allowance:
+
+
+```
+sudo ufw delete allow 'Nginx HTTP'
+
+
+```
+
+
+To verify the configuration, navigate once again to your domain, using https://:
+
+
+```
+https://your_domain
+
+```
+
+
+You will see your application output once again, along with your browser’s security indicator, which should indicate that the site is secured.
+
+
+# Conclusion
+
+
+In this guide, you created and secured a basic Flask application within a Python virtual environment. Then you created a WSGI entry point so that any WSGI-capable application server can interface with it, and then configured the uWSGI app server to provide this function.  Afterwards, you created a systemd service file to automatically launch the application server on boot. You also created an Nginx server block that passes web client traffic to the application server, thereby relaying external requests, and secured traffic to your server with Let’s Encrypt.
+
+
+Flask is a simple yet flexible framework meant to provide your applications with functionality without being too restrictive about structure or design.  You can use the general stack described in this guide to serve the flask applications that you design.
+
+

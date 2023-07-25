@@ -1,0 +1,433 @@
+# How To Use the Cobra Package in Go
+
+```Go``` ```Write for DO```
+
+# Introduction
+
+
+Command Line Interfaces (CLI) applications are software programs that run on terminals or command prompts. The user interacts with the software by specifying commands and receiving text as feedback.
+
+
+CLIs are old but very popular for their versatility, portability, and speed. CLIs are popularly used for various tasks ranging from text processing to complex systems administration tasks to save time and effort.
+
+
+There are many tools you can use to build command-line applications in Go. For example, you can work with Go’s built-in flag package or resort to popular third-party packages like the Cobra package.
+
+
+In this tutorial, you’ll learn how to build CLIs in Go with the popular Cobra package. Then, you’ll build a CLI application that outputs the timezone in a specified location.
+
+
+# Prerequisites
+
+
+You’ll need to meet some requirements to fully grasp the concepts and follow this tutorial.
+
+
+- 
+You have a recent version of the Go SDK installed on your machine. Here’s a walk-through tutorial that you can follow to ease the installation process.
+
+- 
+You have experience working with the Go programming language. Review this resource to start writing Go code.
+
+
+# Step 1 - Setting Up Your Development Environment
+
+
+In this step, you’ll learn to set up your Go development environment to start building a Cobra-cli application.
+
+
+Setting up a Go development environment is straightforward. Once you’ve installed the Go SDK, create a new directory and write Go code.
+
+
+Run this command on your terminal to verify your Go installation.
+
+
+```
+go version
+
+```
+
+
+The command outputs the version of the Go SDK you have installed on your computer.
+
+
+```
+Outputgo version go1.20.1 darwin/arm64
+
+```
+
+
+You’ll need to create a new directory for your  CLI application and initialize the directory for a new Go project with the go mod command.
+
+
+Run these commands on your terminal to create and initialize a new project for the CLI application on your computer.
+
+
+```
+mkdir CobraDigitalOcean && cd CobraDigitalOcean
+go mod init CobraDigitalOcean
+
+```
+
+
+The go mod command initializes a new project in the specified working directory. The command also creates a go.mod file in the directory for managing your project’s dependencies.
+
+
+```
+Outputgo: creating a new go.mod: module CobraDigitalOcean
+
+```
+
+
+In this step, you’ve successfully initialized a Go project for your CLI application.
+
+
+# Step 2 - Getting Started the Cobra Package
+
+
+In this step, you’ll learn how to start with the Cobra package for building CLI applications.
+
+
+Cobra (Cobra-cli) is a popular package in the Go ecosystem that provides a robust and comprehensive framework for building modern command-line applications. The Cobra package offers many features and functionalities that simplify building command-line applications in Go.
+
+
+The Cobra-cli package is built on top of the standard library’s flag package, providing a higher level of abstraction while adding more features. Cobra-cli offers features such as command hierarchy, flag and argument parsing, and subcommands, among others, to make developing complex and feature-rich CLI applications easier.
+
+
+Popular CLI applications like Kubernetes, Hugo, CockroachDB, and Traefik are written in Go with the Cobra package.
+
+
+You can run this command in the terminal of your project’s working directory to install the Cobra-cli package.
+
+
+```
+go install github.com/spf13/cobra-cli@latest
+
+```
+
+
+The command installs the Cobra-cli package as a CLI executable.
+
+
+After installing the package, you can initialize a Cobra CLI project with the init command of the command line tool.
+
+
+```
+cobra-cli init
+
+```
+
+
+The init command creates files in your project’s working directory that contain boilerplate code for the Cobra package with the name of your package.
+
+
+```
+OutputYour Cobra application is ready at
+/Users/chukwuemeriwoukeje/go/src/CobraDigitalOcean/CobraDigitalOcean
+
+```
+
+
+You can build your new Cobra CLI tool with the build command of the go CLI tool. The command outputs an executable file in your project’s working directory.
+
+
+```
+go build
+
+```
+
+
+You must install your CLI package with the install command to access the changes and interact with your CLI app.
+
+
+```
+go install
+
+```
+
+
+After installing your CLI project application, you can run the tool with commands to test the tool and its functionalities.
+
+
+```
+CobraDigitalOcean.
+
+```
+
+
+The command should return the usage from the generated file.
+
+
+```
+OutputA longer description that spans multiple lines and likely contains
+examples and usage of using your application. For example:
+Cobra is a CLI library for Go that empowers applications.
+This application is a tool to generate the needed files
+to quickly create a Cobra application.
+
+```
+
+
+The command’s output at the moment was generated by the Cobra-cli tool. You can edit the root.go file to change the output.
+
+
+You’ve successfully installed the Cobra package and initialized a Cobra CLI app in this step.
+
+
+# Step 3 -  Retrieving the Time in a Timezone With the Time Package
+
+
+In this step, you’ll learn how to use the time package to retrieve the time in a timezone.
+
+
+Since the CLI application outputs the time in a time zone, you’ll need a function that returns the time from a time zone.
+
+
+Go’s built-in time package provides functionality for working with different time zones. You can use the LoadLocation function of the time package to load the location data from a timezone string and access the time in the location with the In function of the Now function of the time package.
+
+
+Create a time.go file with this command in the cmd directory.
+
+
+```
+cd cmd && touch time.go
+
+```
+
+
+The command navigates into the cmd folder and creates the time.go file.
+
+
+Here’s the function that will accept a time zone string and return the time in that time zone.
+
+
+cmd/time.go
+```
+package time
+import "time"
+
+func getTimeInTimezone(timezone string) (string, error) {
+ location, err := time.LoadLocation(timezone)
+ if err != nil {
+  return ", err
+ }
+ currentTime := time.Now().In(location)
+ return currentTime.Format(time.RFC1123), nil
+}
+
+```
+
+
+The program imports the time package for the getTimeInTimezone function. The getTimeInTimezone function takes in a time zone string and returns the current time in string format and an error.
+
+
+The Format function of the current time instance formats the time according to the RFC1123 standard.
+
+
+In this step, you’ve set up the function that returns the time in a time zone location with the time package.
+
+
+# Step 4 - Adding Commands to Your Cobra Applications
+
+
+In this step, you’ll learn how to add commands to your Cobra CLI applications.
+
+
+You can add commands to your CLI app with Cobra-cli’s add command. You’ll need to specify the command’s name as an additional argument.
+
+
+Run this command on the terminal of your Cobra-cli project to add a command named timezone to your application.
+
+
+```
+cobra-cli add timezone
+
+```
+
+
+The command should create a file in the cmd folder where the root.go exists, and the file would contain boilerplate code for you to edit and get your CLI app running.
+
+
+```
+Outputtimezone created at /Users/chukwuemeriwoukeje/go/src/CobraDigitalOcean/CobraDigitalOcean
+
+```
+
+
+You’re going to edit the file to suit your CLI project. The timeZoneCmd variable is an instance of the cobra command.  The Use field of the Command struct specifies the command name, and the Short and Long fields specify short and long descriptions for the command.
+
+
+The Run field is the function that runs when you execute commands on the CLI application.
+
+
+Here’s the edited timezoneCmd variable with fields that suit the time zone command functionality.
+
+
+cmd/timezone.go
+```
+// timezoneCmd represents the timezone command
+
+var timezoneCmd = &cobra.Command{
+ Use:   "timezone",
+ Short: "Get the current time in a given timezone",
+ Long: `Get the current time in a given timezone.
+               This command takes one argument, the timezone you want to get the current time in.
+               It returns the current time in RFC1123 format.`,
+ Args: cobra.ExactArgs(1),
+ Run: func(cmd *cobra.Command, args []string) {
+  timezone := args[0]
+  currentTime, err := getTimeInTimezone(timezone)
+  if err != nil {
+   log.Fatalln("The timezone string is invalid")
+  }
+  fmt.Println(currentTime)
+ },
+}
+
+```
+
+
+The program defines the Use, Short, Long, and Run fields that suit the functionality of the timezone function. The timezoneString variable is the additional argument from the args slice of strings that holds additional arguments from the user input.
+
+
+Simply run the go install command to build and install the CLI tool for testing.
+
+
+```
+go install
+
+```
+
+
+Then run the timezone command with a timezone string.
+
+
+```
+CobraDigitalOcean timezone EST
+
+```
+
+
+Here’s the result from running the command to request for the time in America (timezone string EST)
+
+
+```
+OutputSat, 11 Mar 2023 06:57:23 EST
+
+```
+
+
+In this step, you’ve learned how to commands and their functionality to your CLI application.
+
+
+# Step 5 - Adding Flags to Your Cobra Application
+
+
+In this step, you’ll learn how to add local and persistent flags to your CLI application.
+
+
+Flags are options for modifying the behavior of commands. A hyphen or two hyphens usually precede flags (“-” or “–”). Flags provide a convenient way for users to modify a command’s behavior without modifying the source code or recompiling the program.
+
+
+You can add flags in the init function of the command file. In addition, cobra provides functionality for adding local and persistent flags to your application.
+
+
+Local flags are only available to the command they’re defined in. Local flags aren’t inherited by subcommands or available to commands at the same level.
+
+
+On the other hand, you can define persistent flags at the root level of a command for subcommands to inherit. Then, subcommands of the root command can access the persistent flag without needing redefinition.
+
+
+In the init function, you can use the PersistentFlags function of the command instance (timezoneCmd) to add persistent flags to your application. You can use the String function of the PersistentFlags function to add information about the flag.
+
+
+cmd/timezone.go
+```
+func init() {
+  rootCmd.AddCommand(timezoneCmd)
+  timezoneCmd.PersistentFlags().String("date", "", "returns the date in a time zone in a specified format")
+}
+
+```
+
+
+Similarly, you can add local flags with the Flags function and use the String function to add information about the flag.
+
+
+cmd/timezone.go
+```
+func init() {
+  rootCmd.AddCommand(timezoneCmd)
+  timezoneCmd.Flags().String("date", "", "Date for which to get the time (format: yyyy-mm-dd)")
+
+}
+
+```
+
+
+After adding information for flags in the init function,  you can add functionality for flags in the command instance’s Run function.
+
+
+You can access data from flags with the Flags function and access string values from the flag with the GetString function of the Flags function that takes in the flag’s name and returns the string and an error.
+
+
+Here’s a function for the timezone command that accesses the string from the date flag and returns only the date in a specified format.
+
+
+cmd/timezone.go
+```
+Run: func(cmd *cobra.Command, args []string) {
+  timezone := args[0]
+  location, _ := time.LoadLocation(timezone)
+  dateFlag, _ := cmd.Flags().GetString("date")
+  var date string
+  
+  if dateFlag != "" {
+   date = time.Now().In(location).Format(dateFlag)
+  } else {
+   date = time.Now().In(location).Format(time.RFC3339)[:10]
+  }
+  fmt.Printf("Current date in %v: %v\n", timezone, date)
+ }
+
+```
+
+
+The function accesses the command and flag, loads the location of the timezone with the time package, accesses the time in the timezone, and retrieves the date with string formatting verbs.
+
+
+Run the go install command again to update your CLI application’s functionality.
+
+
+Here’s how you can use the flags in your CLI app.
+
+
+```
+CobraDigitalOcean timezone EST --date 2006-01-02
+
+```
+
+
+The command specifies the date format as YYYY-MM-DD, and the output should be the current date in that timezone in the prescribed format.
+
+
+```
+
+[secondary_label Output]
+The current date in EST: 2023-03-11
+
+```
+
+
+In this step, you learned how to add persistent and local flags to your CLI app.
+
+
+# Conclusion
+
+
+You’ve learned about CLIs, the Cobra package, how to work with timezones with Go’s built-in time package, and how to build CLI applications with the Cobra-cli tool.
+
+
+Cobra is essential to your development arsenal since you can build CLI applications in minutes.
+
+
